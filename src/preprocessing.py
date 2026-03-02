@@ -3,6 +3,12 @@ import pandas as pd
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     # Provera nedostajucih vrednosti
     # print(df.isnull().sum())
+    total_missing = df.isnull().sum().sum()
+
+    if total_missing > 0:
+        print(f"Ukupan broj nedostajućih vrednosti: {total_missing}")
+    else:
+        print("Nema nedostajućih vrednosti.")
 
     num_duplicates = df.duplicated().sum()
     if num_duplicates > 0:
@@ -25,7 +31,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     # One-Hot encoding za kategroicke vrijednosti
     categorical_cols = ['Gender', 'Phone_Usage_Purpose']
 
-    drop_first=True #je ključan da ne dupliramo informacije (npr. ako znamo da nije Muško i nije Ostalo, onda je Žensko)
+    #je ključan da ne dupliramo informacije (npr. ako znamo da nije Muško i nije Ostalo, onda je Žensko)
     df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
     return df_encoded
