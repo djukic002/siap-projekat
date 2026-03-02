@@ -127,7 +127,6 @@ def plot_segmented_analysis(results_df, title="Segmentirana analiza"):
     print(f"7-9: MAE = {mae_values[1]:.4f}, RMSE = {rmse_values[1]:.4f}")
     print(f"9-10: MAE = {mae_values[2]:.4f}, RMSE = {rmse_values[2]:.4f}")
 
-    # Bar plot za MAE i RMSE
     groups = ["1-7", "7-9", "9-10"]
     colors_mae = ['red', 'blue', 'green']
     colors_rmse = ['darkred', 'darkblue', 'darkgreen']
@@ -155,8 +154,13 @@ def compare_segmented_mae(results1, results2, labels=("Standard", "Weighted"), t
     counts = []
 
     for _, seg_min, seg_max in segments:
-        seg_r1 = results1[(results1["true"] >= seg_min) & (results1["true"] < seg_max if seg_max < 10 else results1["true"] <= seg_max)]
-        seg_r2 = results2[(results2["true"] >= seg_min) & (results2["true"] < seg_max if seg_max < 10 else results2["true"] <= seg_max)]
+        is_in_segment = (results1["true"] >= seg_min) & (results1["true"] < seg_max)
+        if seg_max >= 10:
+            is_in_segment = (results1["true"] >= seg_min) & (results1["true"] <= seg_max)
+
+        seg_r1 = results1[is_in_segment]
+        seg_r2 = results2[is_in_segment]
+        
         mae1.append(mean_absolute_error(seg_r1["true"], seg_r1["pred"]))
         mae2.append(mean_absolute_error(seg_r2["true"], seg_r2["pred"]))
         counts.append(len(seg_r1))
