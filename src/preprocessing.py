@@ -1,10 +1,7 @@
 import pandas as pd
 
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
-    # Provera nedostajucih vrednosti
-    # print(df.isnull().sum())
     total_missing = df.isnull().sum().sum()
-
     if total_missing > 0:
         print(f"Ukupan broj nedostajućih vrednosti: {total_missing}")
     else:

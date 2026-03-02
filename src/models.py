@@ -34,8 +34,8 @@ def train_model_with_cv(model, X_tr, y_tr, use_weights=False, n_splits=5):
             # koren if
             # w = y_f_train.round().apply(lambda val: np.sqrt(1.0 / counts.get(val, 1)))
             # w = w / w.mean()
-
-            # Logaritamsko ublažavanje if
+            
+            # Logaritamsko ublazavanje if
             w = y_f_train.round().apply(lambda val: np.log1p(len(y_f_train) / counts.get(val, 1)))
             w = w / w.mean()
 
@@ -68,6 +68,10 @@ def get_final_model_results(model, X_tr, y_tr, X_te, y_te, use_weights=False):
 
         counts = y_tr.round().value_counts().to_dict()
 
+        # inverzna frekvencija
+        # w = y_tr.round().apply(lambda val: 1.0 / counts.get(val, 1))
+        # w = w / w.mean()
+        
         # Logaritamsko ublažavanje if
         w = y_tr.round().apply(lambda val: np.log1p(len(y_tr) / counts.get(val, 1)))
         w = w / w.mean()
