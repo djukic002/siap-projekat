@@ -16,7 +16,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
 
     df['School_Grade'] = df['School_Grade'].astype(str).str.replace(r'th|st|nd|rd', '', regex=True)
 
-    # Pretvoriš u numerik, a ako nešto ne može da se pretvori, postane NaN (umesto da pukne kod)
+    # Pretvori u numerik, a ako nešto ne može da se pretvori, postane NaN (umesto da pukne kod)
     df['School_Grade'] = pd.to_numeric(df['School_Grade'], errors='coerce')
 
     # Tek onda popuniš NaN (ako ih ima) i pretvoriš u int
