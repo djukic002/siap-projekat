@@ -120,12 +120,10 @@ def get_final_model_results(model, X_tr, y_tr, X_te, y_te, use_weights=False, us
 
     preds = model.predict(X_test_final)
 
-    # Opciono: Ograničavanje rezultata na realan opseg 1-10
-    # preds = np.clip(preds, 1, 10)
-
     mae = mean_absolute_error(y_te, preds)
     rmse = np.sqrt(mean_squared_error(y_te, preds))
     r2 = r2_score(y_te, preds)
+    adj_r2 = caluclate_adjusted_r2(X_test_final, r2)
 
     modes = []
     if use_scaling: modes.append("Scaled")
@@ -134,9 +132,16 @@ def get_final_model_results(model, X_tr, y_tr, X_te, y_te, use_weights=False, us
     mode_desc = " + ".join(modes) if modes else "Standard"
 
     print(f"\n===== {model.__class__.__name__} (Finalni {mode_desc}) =====")
-    print(f"Finalni MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f}")
+    print(f"Finalni MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f} | Adj R2: {adj_r2:.4f}")
     
     return pd.DataFrame({"true": y_test_final, "pred": preds})
+
+def caluclate_adjusted_r2(x_test, r2):
+    n = x_test.shape[0]   
+    p = x_test.shape[1]
+    adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+    return adj_r2
+
 
 def plot_compare_rolling_mae(results_dict, window=50):
     """
@@ -224,8 +229,6 @@ def train_model_with_transformation_cv(model, X_tr, y_tr, method='sqrt', n_split
             preds_final = np.power(preds_trans, 1/0.75)
         else:
             preds_final = preds_trans
-        
-        preds_final = np.clip(preds_final, 1, 10)
 
         cv_mae_scores.append(mean_absolute_error(y_f_val, preds_final))
         cv_rmse_scores.append(np.sqrt(mean_squared_error(y_f_val, preds_final)))
@@ -262,8 +265,6 @@ def get_final_model_transformation(model, X_tr, y_tr, X_te, y_te, method='sqrt')
         preds_final = np.power(preds_trans, 1/0.75)
     else:
         preds_final = preds_trans
-
-    preds_final = np.clip(preds_final, 1, 10)
 
     mae = mean_absolute_error(y_te, preds_final)
     r2 = r2_score(y_te, preds_final)
