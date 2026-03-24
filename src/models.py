@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import smogn
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import StandardScaler
+import shap
+from sklearn.base import clone
 
 def train_model_with_cv(model, X_tr, y_tr, use_weights=False, use_smote=False, use_scaling=False, n_splits=5):
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
@@ -81,66 +82,74 @@ def train_model_with_cv(model, X_tr, y_tr, use_weights=False, use_smote=False, u
     return avg_mae
 
 
-def get_final_model_results(model, X_tr, y_tr, X_te, y_te, use_weights=False, use_smote=False, use_scaling=False):
-    X_train_final = X_tr.copy().reset_index(drop=True)
-    y_train_final = y_tr.copy().reset_index(drop=True)
-    X_test_final = X_te.copy().reset_index(drop=True)
-    y_test_final = y_te.copy().reset_index(drop=True)
+def train_final_model(model, X_tr, y_tr, use_weights=False, use_smote=False, use_scaling=False):
+    model = clone(model)
+
+    X_train = X_tr.copy().reset_index(drop=True)
+    y_train = y_tr.copy().reset_index(drop=True)
+    scaler = None
 
     if use_scaling:
         scaler = StandardScaler()
-        X_train_final = pd.DataFrame(scaler.fit_transform(X_train_final), columns=X_tr.columns)
-        X_test_final = pd.DataFrame(scaler.transform(X_test_final), columns=X_tr.columns)
+        X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X_tr.columns)
 
     if use_smote:
-        try:
-            temp_df = pd.concat([X_train_final, y_train_final], axis=1)
-            y_rounded = y_train_final.round().astype(int)
-            
-            counts = y_rounded.value_counts()
-            if counts.min() > 1:
-                k_neigh = min(5, counts.min() - 1)
-                sm = SMOTE(random_state=42, k_neighbors=k_neigh)
-                
-                temp_resampled, _ = sm.fit_resample(temp_df, y_rounded)
-                
-                X_train_final = temp_resampled.drop(columns=[y_train_final.name])
-                y_train_final = temp_resampled[y_train_final.name]
-        except Exception as e:
-            print(f"SMOTE Greška na finalnom setu: {e}")
+        temp_df = pd.concat([X_train, y_train], axis=1)
+        y_rounded = y_train.round().astype(int)
+        counts = y_rounded.value_counts()
+        if counts.min() > 1:
+            k_neigh = min(5, counts.min() - 1)
+            sm = SMOTE(random_state=42, k_neighbors=k_neigh)
+            temp_resampled, _ = sm.fit_resample(temp_df, y_rounded)
+            X_train = temp_resampled.drop(columns=[y_train.name])
+            y_train = temp_resampled[y_train.name]
 
-    # 3. Treniranje modela (sa težinama ili bez)
     if use_weights:
-        counts = y_train_final.round().value_counts().to_dict()
-        w = y_train_final.round().apply(lambda val: np.log1p(len(y_train_final) / counts.get(val, 1)))
+        counts = y_train.round().value_counts().to_dict()
+        w = y_train.round().apply(lambda val: np.log1p(len(y_train) / counts.get(val, 1)))
         w = w / w.mean()
-        model.fit(X_train_final, y_train_final, sample_weight=w)
+        model.fit(X_train, y_train, sample_weight=w)
     else:
-        model.fit(X_train_final, y_train_final)
+        model.fit(X_train, y_train)
 
-    preds = model.predict(X_test_final)
+    return model, scaler
+
+def evaluate_model(model, X_te, y_te, scaler=None):
+    X_test = X_te.copy().reset_index(drop=True)
+
+    if scaler is not None:
+        X_test = pd.DataFrame(scaler.transform(X_test), columns=X_te.columns)
+
+    preds = model.predict(X_test)
 
     mae = mean_absolute_error(y_te, preds)
     rmse = np.sqrt(mean_squared_error(y_te, preds))
     r2 = r2_score(y_te, preds)
-    adj_r2 = caluclate_adjusted_r2(X_test_final, r2)
-
-    modes = []
-    if use_scaling: modes.append("Scaled")
-    if use_smote: modes.append("SMOTE")
-    if use_weights: modes.append("Weighted")
-    mode_desc = " + ".join(modes) if modes else "Standard"
-
-    print(f"\n===== {model.__class__.__name__} (Finalni {mode_desc}) =====")
-    print(f"Finalni MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f} | Adj R2: {adj_r2:.4f}")
     
-    return pd.DataFrame({"true": y_test_final, "pred": preds})
-
-def caluclate_adjusted_r2(x_test, r2):
-    n = x_test.shape[0]   
-    p = x_test.shape[1]
+    n, p = X_test.shape
     adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
-    return adj_r2
+
+    print(f"MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f} | Adj R2: {adj_r2:.4f}")
+    return pd.DataFrame({"true": y_te, "pred": preds})
+
+def run_shap(model, X_tr, scaler=None, model_type='tree'):
+    """
+    model_type: 'tree' za XGBoost, 'kernel' za MLP
+    """
+    X_sample = X_tr.copy().reset_index(drop=True)
+    if scaler:
+        X_sample = pd.DataFrame(scaler.transform(X_sample), columns=X_tr.columns)
+
+    if model_type == 'tree':
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_sample)
+    else:
+        X_summary = shap.kmeans(X_sample, 10)
+        explainer = shap.KernelExplainer(model.predict, X_summary)
+        shap_values = explainer.shap_values(X_sample.sample(50, random_state=42))
+        X_sample = X_sample.sample(50, random_state=42)
+
+    shap.summary_plot(shap_values, X_sample)
 
 
 def plot_compare_rolling_mae(results_dict, window=50):
