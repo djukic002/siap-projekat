@@ -14,17 +14,6 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     else:
         print("\nNema duplikata.")
 
-    df['School_Grade'] = df['School_Grade'].astype(str).str.replace(r'th|st|nd|rd', '', regex=True)
-
-    # Pretvori u numerik, a ako nešto ne može da se pretvori, postane NaN (umesto da pukne kod)
-    df['School_Grade'] = pd.to_numeric(df['School_Grade'], errors='coerce')
-
-    # Tek onda popuniš NaN (ako ih ima) i pretvoriš u int
-    df['School_Grade'] = df['School_Grade'].fillna(0).astype(int)
-
-    # Izbacujemo Location jer ima previse unique vrijednosti, pa bismo dobili previse novih kolona, a i nema nam uticaja
-    df = df.drop(columns=['Location'])
-
     # One-Hot encoding za kategroicke vrijednosti
     categorical_cols = ['Gender', 'Phone_Usage_Purpose']
 
@@ -32,3 +21,18 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
     return df_encoded
+
+def merge_datasets(old_df: pd.DataFrame, new_df: pd.DataFrame) -> pd.DataFrame:
+    target_columns = new_df.columns.tolist()
+
+    old_aligned = old_df[[col for col in target_columns if col in old_df.columns]]
+
+    for col in target_columns:
+        if col not in old_aligned.columns:
+            old_aligned[col] = None
+
+    old_aligned = old_aligned[target_columns]
+
+    merged_df = pd.concat([old_aligned, new_df], ignore_index=True)
+
+    return merged_df
