@@ -114,7 +114,7 @@ def train_final_model(model, X_tr, y_tr, use_weights=False, use_smote=False, use
 
     return model, scaler
 
-def evaluate_model(model, X_te, y_te, scaler=None):
+def evaluate_model(model, X_te, y_te, scaler=None, mode="Standard"):
     X_test = X_te.copy().reset_index(drop=True)
 
     if scaler is not None:
@@ -129,7 +129,11 @@ def evaluate_model(model, X_te, y_te, scaler=None):
     n, p = X_test.shape
     adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
 
+    model_name = model.__class__.__name__
+
+    print(f"\n===== {model_name} ({mode}) =====")
     print(f"MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f} | Adj R2: {adj_r2:.4f}")
+
     return pd.DataFrame({"true": y_te, "pred": preds})
 
 def run_shap(model, X_tr, scaler=None, model_type='tree'):
@@ -164,31 +168,21 @@ def plot_compare_rolling_mae(results_dict, window=50):
     plt.figure(figsize=(12, 6))
     
     for label, df in results_dict.items():
-        # 1. Kreiramo privremeni DF sa apsolutnom greškom
         temp = pd.DataFrame({
             'true': df['true'], 
             'error': np.abs(df['true'] - df['pred'])
         })
-        
-        # 2. Sortiramo po stvarnim vrednostima (X osa)
         temp = temp.sort_values('true')
-        
-        # 3. Računamo rolling prosek greške
         temp['rolling_mae'] = temp['error'].rolling(window=window, center=True).mean()
         
-        # 4. Crtamo liniju za taj model
         plt.plot(temp['true'], temp['rolling_mae'], label=label, linewidth=2)
 
-    # Estetika grafikona
     plt.title(f'Analiza greške: Pokretni MAE (Prozor = {window} uzoraka)', fontsize=14)
     plt.xlabel('Stvarni Addiction Level (Skala 1-10)', fontsize=12)
     plt.ylabel('Srednja Apsolutna Greška (MAE)', fontsize=12)
     plt.legend()
     plt.grid(True, alpha=0.3, linestyle='--')
-    
-    # Opciono: Postavljamo X osu da uvek bude 1-10 radi preglednosti
     plt.xlim(1, 10)
-    
     plt.show()
 
 def plot_error_distribution(results_dict):
