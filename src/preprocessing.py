@@ -14,10 +14,8 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     else:
         print("\nNema duplikata.")
 
-    # One-Hot encoding za kategroicke vrijednosti
     categorical_cols = ['Gender', 'Phone_Usage_Purpose']
 
-    #je ključan da ne dupliramo informacije (npr. ako znamo da nije Muško i nije Ostalo, onda je Žensko)
     df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
     return df_encoded

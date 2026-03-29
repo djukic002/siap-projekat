@@ -114,6 +114,7 @@ def train_final_model(model, X_tr, y_tr, use_weights=False, use_smote=False, use
 
     return model, scaler
 
+
 def evaluate_model(model, X_te, y_te, scaler=None, mode="Standard"):
     X_test = X_te.copy().reset_index(drop=True)
 
@@ -135,6 +136,7 @@ def evaluate_model(model, X_te, y_te, scaler=None, mode="Standard"):
     print(f"MAE: {mae:.4f} | RMSE: {rmse:.4f} | R2: {r2:.4f} | Adj R2: {adj_r2:.4f}")
 
     return pd.DataFrame({"true": y_te, "pred": preds})
+
 
 def run_shap(model, X_tr, scaler=None, model_type='tree'):
     """
@@ -185,6 +187,7 @@ def plot_compare_rolling_mae(results_dict, window=50):
     plt.xlim(1, 10)
     plt.show()
 
+
 def plot_error_distribution(results_dict):
     plt.figure(figsize=(12, 6))
     for label, df in results_dict.items():
@@ -208,7 +211,6 @@ def train_model_with_transformation_cv(model, X_tr, y_tr, method='sqrt', n_split
         X_f_train, X_f_val = X_tr.iloc[train_idx].copy(), X_tr.iloc[val_idx].copy()
         y_f_train, y_f_val = y_tr.iloc[train_idx].copy(), y_tr.iloc[val_idx].copy()
 
-        # Primena izabrane transformacije
         if method == 'sqrt':
             y_f_train_trans = np.sqrt(y_f_train)
         elif method == 'log':
@@ -240,40 +242,3 @@ def train_model_with_transformation_cv(model, X_tr, y_tr, method='sqrt', n_split
     print(f"\n===== {model.__class__.__name__} (K-Fold {method.upper()} Transformed) =====")
     print(f"CV Prosečan MAE: {np.mean(cv_mae_scores):.4f}")
     print(f"CV Prosečan R2 Score: {np.mean(cv_r2_scores):.4f}")
-
-
-def get_final_model_transformation(model, X_tr, y_tr, X_te, y_te, method='sqrt'):
-    X_tr_copy = X_tr.copy()
-    y_tr_copy = y_tr.copy()
-
-    # Primena transformacije
-    if method == 'sqrt':
-        y_tr_trans = np.sqrt(y_tr_copy)
-    elif method == 'log':
-        y_tr_trans = np.log1p(y_tr_copy)
-    elif method == 'power':
-        y_tr_trans = np.power(y_tr_copy, 0.75)
-    else:
-        y_tr_trans = y_tr_copy
-    
-    model.fit(X_tr_copy, y_tr_trans)
-    preds_trans = model.predict(X_te)
-    
-    # Inverzna transformacija
-    if method == 'sqrt':
-        preds_final = np.square(preds_trans)
-    elif method == 'log':
-        preds_final = np.expm1(preds_trans)
-    elif method == 'power':
-        preds_final = np.power(preds_trans, 1/0.75)
-    else:
-        preds_final = preds_trans
-
-    mae = mean_absolute_error(y_te, preds_final)
-    r2 = r2_score(y_te, preds_final)
-
-    print(f"\n===== {model.__class__.__name__} (Finalni {method.upper()} Transformed) =====")
-    print(f"Finalni MAE (Test): {mae:.4f}")
-    print(f"Finalni R2 Score (Test): {r2:.4f}")
-
-    return pd.DataFrame({"true": y_te, "pred": preds_final})
